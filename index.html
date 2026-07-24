@@ -235,7 +235,20 @@ function applyTheme(t){document.documentElement.setAttribute('data-theme',t);try
 function toggleTheme(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')}
 (function(){try{const s=localStorage.getItem('medix_theme');applyTheme(s||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'))}catch(e){applyTheme('light')}})();
 
-function getUserId(){let id=localStorage.getItem('patan_uid');if(!id){id='p_'+Math.random().toString(36).substr(2,9)+Date.now().toString(36);localStorage.setItem('patan_uid',id)}return id}
+function getUserId(){
+  // ID привязан к аккаунту Medix: приходит в ?u=, сохраняется локально.
+  // Так лимит нельзя обойти очисткой браузера, а лобби видит реальную активность.
+  var uid=null;
+  try{ uid=new URLSearchParams(location.search).get('u'); }catch(e){}
+  if(uid){ try{ localStorage.setItem('medix_uid',uid); }catch(e){} }
+  if(!uid){ try{ uid=localStorage.getItem('medix_uid'); }catch(e){} }
+  if(!uid){
+    try{ uid=localStorage.getItem('anon_uid'); }catch(e){}
+    if(!uid){ uid='anon_'+Math.random().toString(36).substr(2,9)+Date.now().toString(36);
+      try{ localStorage.setItem('anon_uid',uid); }catch(e){} }
+  }
+  return uid+'_patan';
+}
 const userId=getUserId();
 let topic='общая патология',mode='theory',hist=[],busy=false,messagesUsed=0,isPremium=false;
 const FREE_LIMIT=10;
@@ -322,7 +335,7 @@ function fmt(t){return t.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace
 function addMsg(role,text){const w=document.getElementById('wlc');if(w)w.remove();const el=document.getElementById('msgs');const time=new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});const d=document.createElement('div');d.className='msg '+role;const tag=role==='a'?'<span class="tag">'+modeLabel[mode]+'</span>':'';const ava=role==='u'?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>':AGENT_EMOJI;d.innerHTML='<div class="ava">'+ava+'</div><div class="msg-body"><div class="bub">'+fmt(text)+'</div><div class="meta">'+time+' '+tag+'</div></div>';el.appendChild(d);el.scrollTop=el.scrollHeight}
 function showTyp(){const w=document.getElementById('wlc');if(w)w.remove();const el=document.getElementById('msgs');const d=document.createElement('div');d.className='msg a';d.id='typ';d.innerHTML='<div class="ava">'+AGENT_EMOJI+'</div><div class="msg-body"><div class="bub"><div class="typ"><span></span><span></span><span></span></div></div></div>';el.appendChild(d);el.scrollTop=el.scrollHeight}
 function hideTyp(){const e=document.getElementById('typ');if(e)e.remove()}
-function openPayment(){window.open('https://t.me/ТВОЙ_ТЕЛЕГРАМ?text=Подписка ПатАнат. ID: '+userId,'_blank')}
+function openPayment(){window.open('https://t.me/Charman_6?text=Подписка ПатАнат. ID: '+userId,'_blank')}
 
 async function send(){if(busy)return;const inp=document.getElementById('inp');const text=inp.value.trim();if(!text)return;inp.value='';inp.style.height='auto';busy=true;document.getElementById('sb').disabled=true;addMsg('u',text);hist.push({role:'user',content:text});showTyp();
   try{const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:buildSys(),messages:hist.slice(-20),userId})});
